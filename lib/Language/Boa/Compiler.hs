@@ -75,7 +75,16 @@ compileEnv env (Prim1 o v l)     = compilePrim1 l env o v
 
 compileEnv env (Prim2 o v1 v2 l) = compilePrim2 l env o v1 v2
 
-compileEnv env (If v e1 e2 l)    = error "TBD:compileEnv:If"
+compileEnv env (If v e1 e2 l)    = compile env v ++
+                                   [ ICmp (Reg EAX) (Const 0)
+                                   , IJe (BranchFalse l)
+                                   ]
+                                   ++ compile env e1  ++
+                                   [ IJmp   lExit
+                                   , ILabel (BranchFalse l)
+                                   ]
+                                   ++ compile env e2 ++
+                                   [ ILabel (BranchExit l) ]
 
 compileImm :: Env -> IExp -> Instruction
 compileImm env v = IMov (Reg EAX) (immArg env v)
@@ -95,9 +104,13 @@ compileBind env (x, e) = (env', is)
 
 immArg :: Env -> IExp -> Arg
 immArg _   (Number n _)  = repr n
-immArg env e@(Id x _)    = error "TBD:immArg:Id"
+immArg env e@(Id x _)    = RegOffset i ESP
   where
-    err                  = abort (errUnboundVar (sourceSpan e) x)
+    i = case (lookupEnv x env) of
+      Just a     -> a
+      Nothing    -> panic (printf "Error: Variable '%s' is unbound" x) l
+--  where
+--    err                  = abort (errUnboundVar (sourceSpan e) x)
 immArg _   e             = panic msg (sourceSpan e)
   where
     msg                  = "Unexpected non-immExpr in immArg: " ++ show (void e)
@@ -109,13 +122,18 @@ errUnboundVar l x = mkError (printf "Unbound variable '%s'" x) l
 -- | Compiling Primitive Operations
 --------------------------------------------------------------------------------
 compilePrim1 :: Tag -> Env -> Prim1 -> IExp -> [Instruction]
-compilePrim1 l env Add1 v = error "TBD:compilePrim1:Add1"
-compilePrim1 l env Sub1 v = error "TBD:compilePrim1:Sub1"
+compilePrim1 l env Add1 v = compileEnv env v 
+                            ++ [ IAdd (Reg EAX) (Const 1) ]
+compilePrim1 l env Sub1 v = compileEnv env v 
+                            ++ [ IAdd (Reg EAX) (Const (-1)) ]
 
 compilePrim2 :: Tag -> Env -> Prim2 -> IExp -> IExp -> [Instruction]
-compilePrim2 l env Plus  v1 v2 = error "TBD:compilePrim2:Plus"
-compilePrim2 l env Minus v1 v2 = error "TBD:compilePrim2:Minus"
-compilePrim2 l env Times v1 v2 = error "TBD:compilePrim2:Times"
+compilePrim2 l env Plus  v1 v2 = [IMov (Reg EAX) (immArg env v1),
+                                  IAdd (Reg EAX) (immArg env v2)]
+compilePrim2 l env Minus v1 v2 = [IMov (Reg EAX) (immArg env v1),
+                                  ISub (Reg EAX) (immArg env v2)]
+compilePrim2 l env Times v1 v2 = [IMov (Reg EAX) (immArg env v1),
+                                  IMul (Reg EAX) (immArg env v2)]
 
 --------------------------------------------------------------------------------
 -- | Local Variables
