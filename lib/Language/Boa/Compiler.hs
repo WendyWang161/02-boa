@@ -79,11 +79,11 @@ compileEnv env (If v e1 e2 l)    = compileEnv env v ++
                                    [ ICmp (Reg EAX) (Const 0)
                                    , IJe (BranchTrue (snd l))
                                    ]
-                                   ++ compileEnv env e2  ++
+                                   ++ compileEnv env e1  ++
                                    [ IJmp   (BranchDone (snd l))
                                    , ILabel (BranchTrue (snd l))
                                    ]
-                                   ++ compileEnv env e1 ++
+                                   ++ compileEnv env e2 ++
                                    [ ILabel (BranchDone (snd l)) ]
 
 compileImm :: Env -> IExp -> Instruction
@@ -104,7 +104,7 @@ compileBind env (x, e) = (env', is)
 
 immArg :: Env -> IExp -> Arg
 immArg _   (Number n _)  = repr n
-immArg env e@(Id x _)    = RegOffset i ESP
+immArg env e@(Id x _)    = RegOffset (-4*i) ESP
   where
     i = case (lookupEnv x env) of
       Just a     -> a

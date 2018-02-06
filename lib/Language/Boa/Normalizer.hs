@@ -28,22 +28,20 @@ anf i (Number n l)      = (i, Number n l)
 
 anf i (Id     x l)      = (i, Id     x l)
 
-anf i (Let x e b l)     = (i'', ???)
+anf i (Let x e b l)     = (i'', Let x e' b' l)
   where
     (i'  ,     e')      = anf i  e
     (i'' ,     b')      = anf i' b
- 
-anf (Let x e1 e2)   = Let x e1' e2'
-  where
-    e1'             = anf e1
-    e2'             = anf e2
-
 
 anf i (Prim1 o e l)     = (i', stitch bs  (Prim1 o ae l))
   where
     (i', bs, ae)        = imm i e
 
-anf i (Prim2 o e1 e2 l) = error "TBD:anf:prim2"
+anf i (Prim2 o e1 e2 l) = (i'', stitch (b2s ++ b1s) (Prim2 o e1' e2' l))
+  where
+    (i' , b1s, e1')     = imm i  e1
+    (i'', b2s, e2')     = imm i' e2
+
 
 anf i (If c e1 e2 l)    = (i''', stitch bs  (If c' e1' e2' l))
   where
@@ -85,9 +83,9 @@ imms i (e:es)       = (i'', bs' ++ bs, e' : es' )
 --------------------------------------------------------------------------------
 imm :: Int -> AnfExpr a -> (Int, Binds a, ImmExpr a)
 --------------------------------------------------------------------------------
-imm i (Number n l)      = error "TBD:imm:Number"
+imm i (Number n l)      = (i  , [], Number n l)
 
-imm i (Id x l)          = error "TBD:imm:Id"
+imm i (Id x l)          = (i  , [], Id x l)
 
 imm i (Prim1 o e1 l)    = (i'', bs, mkId v l)
   where
@@ -95,7 +93,12 @@ imm i (Prim1 o e1 l)    = (i'', bs, mkId v l)
     (i'', v)            = fresh l i'
     bs                  = (v, (Prim1 o v1 l, l)) : b1s
 
-imm i (Prim2 o e1 e2 l) = error "TBD:imm:prim2"
+imm i (Prim2 o e1 e2 l) = (i''', bs, mkId v l)
+  where
+    (i'  , b1s, v1)     = imm i  e1
+    (i'' , b2s, v2)     = imm i' e2
+    (i''', v)           = fresh l i''
+    bs                  = (v, (Prim2 o v1 v2 l, l)) : (b2s ++ b1s)
 
 imm i e@(If _ _ _  l)   = immExp i e l
 
