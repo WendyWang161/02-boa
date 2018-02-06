@@ -28,7 +28,16 @@ anf i (Number n l)      = (i, Number n l)
 
 anf i (Id     x l)      = (i, Id     x l)
 
-anf i (Let x e b l)     = error "TBD:anf:let"
+anf i (Let x e b l)     = (i'', ???)
+  where
+    (i'  ,     e')      = anf i  e
+    (i'' ,     b')      = anf i' b
+ 
+anf (Let x e1 e2)   = Let x e1' e2'
+  where
+    e1'             = anf e1
+    e2'             = anf e2
+
 
 anf i (Prim1 o e l)     = (i', stitch bs  (Prim1 o ae l))
   where

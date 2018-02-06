@@ -75,16 +75,16 @@ compileEnv env (Prim1 o v l)     = compilePrim1 l env o v
 
 compileEnv env (Prim2 o v1 v2 l) = compilePrim2 l env o v1 v2
 
-compileEnv env (If v e1 e2 l)    = compile env v ++
+compileEnv env (If v e1 e2 l)    = compileEnv env v ++
                                    [ ICmp (Reg EAX) (Const 0)
-                                   , IJe (BranchFalse l)
+                                   , IJe (BranchTrue (snd l))
                                    ]
-                                   ++ compile env e1  ++
-                                   [ IJmp   lExit
-                                   , ILabel (BranchFalse l)
+                                   ++ compileEnv env e2  ++
+                                   [ IJmp   (BranchDone (snd l))
+                                   , ILabel (BranchTrue (snd l))
                                    ]
-                                   ++ compile env e2 ++
-                                   [ ILabel (BranchExit l) ]
+                                   ++ compileEnv env e1 ++
+                                   [ ILabel (BranchDone (snd l)) ]
 
 compileImm :: Env -> IExp -> Instruction
 compileImm env v = IMov (Reg EAX) (immArg env v)
@@ -108,7 +108,7 @@ immArg env e@(Id x _)    = RegOffset i ESP
   where
     i = case (lookupEnv x env) of
       Just a     -> a
-      Nothing    -> panic (printf "Error: Variable '%s' is unbound" x) l
+      Nothing    -> panic (printf "Error: Variable '%s' is unbound" x) (sourceSpan e)
 --  where
 --    err                  = abort (errUnboundVar (sourceSpan e) x)
 immArg _   e             = panic msg (sourceSpan e)
